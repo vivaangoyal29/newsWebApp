@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Aggregator</title>
+    <style>
+        .news-card {
+            border: 2px solid black;
+            margin: 10px;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .category-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            background: #eee;
+        }
+        .bookmark-btn {
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1.2em;
+        }
+        .bookmarked {
+            color: #ffd700;
+        }
+        .sentiment.positive { color: green; }
+        .sentiment.negative { color: red; }
+        .sentiment.neutral { color: gray; }
+    </style>
+</head>
+<body>
+    <h1>News Aggregator</h1>
+    <div id="category-filters"></div>
+    <button id="refresh-btn">Refresh News</button>
+    <div id="news-container"></div>
+    <script src="script.js"></script>
+</body>
+</html>

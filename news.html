@@ -1,40 +1,116 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Aggregator</title>
-    <style>
-        .news-card {
-            border: 2px solid black;
-            margin: 10px;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        .category-badge {
-            padding: 5px 10px;
-            border-radius: 15px;
-            background: #eee;
-        }
-        .bookmark-btn {
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 1.2em;
-        }
-        .bookmarked {
-            color: #ffd700;
-        }
-        .sentiment.positive { color: green; }
-        .sentiment.negative { color: red; }
-        .sentiment.neutral { color: gray; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News Aggregator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    #app {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    #newsContainer, #offlineContainer {
+      margin-top: 20px;
+    }
+
+    .article {
+      border-bottom: 1px solid #ccc;
+      padding: 10px 0;
+    }
+
+    .article h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .article p {
+      margin: 5px 0;
+    }
+  </style>
 </head>
 <body>
-    <h1>News Aggregator</h1>
-    <div id="category-filters"></div>
-    <button id="refresh-btn">Refresh News</button>
-    <div id="news-container"></div>
-    <script src="script.js"></script>
+  <div id="app">
+    <!-- Authorization Page -->
+    <div id="authPage">
+      <h2>Sign Up / Sign In</h2>
+      <form id="authForm">
+        <input type="text" id="username" placeholder="Username" required />
+        <input type="password" id="password" placeholder="Password" required />
+        <button type="submit">Login</button>
+      </form>
+    </div>
+
+    <!-- Categories Page -->
+    <div id="categoriesPage" style="display: none;">
+      <h2>Select News Categories</h2>
+      <form id="categoryForm">
+        <label><input type="checkbox" name="category" value="business" /> Business</label>
+        <label><input type="checkbox" name="category" value="technology" /> Technology</label>
+        <label><input type="checkbox" name="category" value="sports" /> Sports</label>
+        <label><input type="checkbox" name="category" value="entertainment" /> Entertainment</label>
+        <label><input type="checkbox" name="category" value="health" /> Health</label>
+        <button type="submit">Show News</button>
+      </form>
+    </div>
+
+    <!-- News Page -->
+    <div id="newsPage" style="display: none;">
+      <h2>Top News Articles</h2>
+      <div id="newsContainer"></div>
+      <button id="offlineArticlesBtn">View Offline Articles</button>
+    </div>
+
+    <!-- Offline Articles Page -->
+    <div id="offlinePage" style="display: none;">
+      <h2>Offline Articles</h2>
+      <div id="offlineContainer"></div>
+      <button id="backToNews">Back to News</button>
+    </div>
+  </div>
+
+  <!-- Load Sentiment.js first -->
+  <script src="https://unpkg.com/sentiment@5.0.2/dist/sentiment.min.js"></script>
+  <!-- Load custom script -->
+  <script src="script.js"></script>
 </body>
 </html>

@@ -1,129 +1,298 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const authPage = document.getElementById("authPage");
-    const categoriesPage = document.getElementById("categoriesPage");
-    const newsPage = document.getElementById("newsPage");
-    const offlinePage = document.getElementById("offlinePage");
+// Constants
+const NEWS_API_KEY = '83776e1904944ae09e8754f263f89284';
 
-    const apiKey = "83776e1904944ae09e8754f263f89284"; // Replace with your NewsAPI key
+// Initialize Sentiment analyzer
+const sentimentAnalyzer = new Sentiment();
 
-    // Initialize Sentiment.js
-    const sentiment = new Sentiment();
-
-    // Switch Pages
-    function showPage(page) {
-        authPage.style.display = "none";
-        categoriesPage.style.display = "none";
-        newsPage.style.display = "none";
-        offlinePage.style.display = "none";
-        page.style.display = "block";
+// Cache Manager Class - Define this first
+class CacheManager {
+    constructor(maxSize = 100) {
+        this.maxSize = maxSize;
+        this.cacheExpiration = 30 * 60 * 1000; // 30 minutes
     }
 
-    // Authorization
-    document.getElementById("authForm").addEventListener("submit", (e) => {
-        e.preventDefault();
-        const username = document.getElementById("username").value;
-        const password = document.getElementById("password").value;
-        localStorage.setItem("user", JSON.stringify({ username, password }));
-        showPage(categoriesPage);
-    });
+    setCachedArticles(category, articles) {
+        const cacheItem = {
+            timestamp: Date.now(),
+            articles: articles
+        };
+        const cache = this.getAllCache();
+        cache[category] = cacheItem;
+        this.manageCache(cache);
+        localStorage.setItem('newsCache', JSON.stringify(cache));
+    }
 
-    // Categories
-    document.getElementById("categoryForm").addEventListener("submit", (e) => {
-        e.preventDefault();
-        const selectedCategories = Array.from(
-            document.querySelectorAll('input[name="category"]:checked')
-        ).map((checkbox) => checkbox.value);
+    getCachedArticles(category) {
+        const cache = this.getAllCache();
+        const categoryCache = cache[category];
+        
+        if (!categoryCache) return null;
+        
+        const now = Date.now();
+        if (now - categoryCache.timestamp > this.cacheExpiration) {
+            delete cache[category];
+            localStorage.setItem('newsCache', JSON.stringify(cache));
+            return null;
+        }
+        
+        return categoryCache.articles;
+    }
 
-        if (selectedCategories.length === 0) {
-            alert("Please select at least one category.");
-            return;
+    getAllCache() {
+        return JSON.parse(localStorage.getItem('newsCache') || '{}');
+    }
+
+    manageCache(cache) {
+        const categories = Object.keys(cache);
+        if (categories.length > this.maxSize) {
+            const sortedCategories = categories.sort((a, b) => 
+                cache[a].timestamp - cache[b].timestamp
+            );
+            
+            while (Object.keys(cache).length > this.maxSize) {
+                const oldestCategory = sortedCategories.shift();
+                delete cache[oldestCategory];
+            }
+        }
+    }
+
+    saveBookmark(article) {
+        const bookmarks = this.getBookmarks();
+        bookmarks.push({
+            ...article,
+            bookmarkedAt: Date.now()
+        });
+        localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+    }
+
+    getBookmarks() {
+        return JSON.parse(localStorage.getItem('bookmarks') || '[]');
+    }
+
+    clearExpiredCache() {
+        const cache = this.getAllCache();
+        const now = Date.now();
+        
+        Object.keys(cache).forEach(category => {
+            if (now - cache[category].timestamp > this.cacheExpiration) {
+                delete cache[category];
+            }
+        });
+        
+        localStorage.setItem('newsCache', JSON.stringify(cache));
+    }
+}
+
+// News Manager Class - Define after CacheManager
+class NewsManager {
+    constructor() {
+        this.articles = [];
+        this.cacheManager = new CacheManager();
+    }
+
+    async fetchNews(category) {
+        const cachedArticles = this.cacheManager.getCachedArticles(category);
+        if (cachedArticles) {
+            console.log(`Retrieved ${category} news from cache`);
+            return cachedArticles;
         }
 
-        localStorage.setItem("categories", JSON.stringify(selectedCategories));
-        fetchNews(selectedCategories);
-    });
+        const url = `https://newsapi.org/v2/top-headlines?category=${category}&apiKey=${NEWS_API_KEY}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            this.cacheManager.setCachedArticles(category, data.articles);
+            return data.articles;
+        } catch (error) {
+            console.error('Error fetching news:', error);
+            return [];
+        }
+    }
 
-    // Fetch News
-    function fetchNews(categories) {
-        showPage(newsPage);
-        const promises = categories.map((category) =>
-            fetch(`https://newsapi.org/v2/top-headlines?category=${category}&apiKey=${apiKey}`)
-                .then((response) => response.json())
-        );
+    analyzeSentiment(text) {
+        const result = sentimentAnalyzer.analyze(text);
+        const normalizedScore = (result.score + 5) / 10;
+        return {
+            score: normalizedScore,
+            comparative: result.comparative,
+            positive: result.positive,
+            negative: result.negative
+        };
+    }
 
-        Promise.all(promises).then((results) => {
-            const articles = results.flatMap((result) => result.articles);
-            analyzeAndSort(articles);
+    processArticles(articles) {
+        const processedArticles = articles.map(article => {
+            const text = article.title + ' ' + (article.description || '');
+            const sentimentAnalysis = this.analyzeSentiment(text);
+            return { 
+                ...article, 
+                sentiment: sentimentAnalysis,
+                sentimentScore: sentimentAnalysis.score
+            };
+        });
+        return processedArticles.sort((a, b) => b.sentimentScore - a.sentimentScore);
+    }
+}
+
+// User Class
+class User {
+    constructor(username, password, preferences) {
+        this.username = username;
+        this.password = password;
+        this.preferences = preferences;
+    }
+
+    static validateUser(username, password) {
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        return users.find(user => user.username === username && user.password === password);
+    }
+}
+
+// UI Manager Class - Define last as it depends on NewsManager
+class UIManager {
+    constructor() {
+        this.newsManager = new NewsManager();
+    }
+
+    createAuthForm() {
+        const authHTML = `
+            <div class="auth-container">
+                <h2>News Aggregator</h2>
+                <form id="authForm">
+                    <input type="text" id="username" placeholder="Username" required>
+                    <input type="password" id="password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                    <button type="button" id="signupBtn">Sign Up</button>
+                </form>
+            </div>
+        `;
+        app.innerHTML = authHTML;
+        this.attachAuthListeners();
+    }
+
+    createPreferencesForm() {
+        const categories = ['business', 'technology', 'sports', 'entertainment', 'health'];
+        const preferencesHTML = `
+            <div class="preferences-container">
+                <h2>Select News Preferences</h2>
+                <form id="preferencesForm">
+                    ${categories.map(category => `
+                        <label>
+                            <input type="checkbox" name="category" value="${category}">
+                            ${category.charAt(0).toUpperCase() + category.slice(1)}
+                        </label>
+                    `).join('')}
+                    <button type="submit">Save Preferences</button>
+                </form>
+            </div>
+        `;
+        app.innerHTML = preferencesHTML;
+        this.attachPreferencesListeners();
+    }
+
+    async displayNews(preferences) {
+        app.innerHTML = '<div class="news-container"><h2>Loading news...</h2></div>';
+        
+        const articles = [];
+        for (const category of preferences) {
+            const categoryArticles = await this.newsManager.fetchNews(category);
+            articles.push(...categoryArticles);
+        }
+
+        const processedArticles = this.newsManager.processArticles(articles);
+        
+        const newsHTML = `
+            <div class="news-container">
+                <h2>Your Personalized News</h2>
+                <div class="articles">
+                    ${processedArticles.map(article => `
+                        <div class="article-card">
+                            <h3>${article.title}</h3>
+                            <p>${article.description || ''}</p>
+                            <div class="sentiment-analysis">
+                                <div class="sentiment-score">
+                                    Sentiment Score: ${article.sentimentScore.toFixed(2)}
+                                </div>
+                                <div class="sentiment-details">
+                                    <span class="positive">Positive words: ${article.sentiment.positive.length}</span>
+                                    <span class="negative">Negative words: ${article.sentiment.negative.length}</span>
+                                </div>
+                            </div>
+                            <a href="${article.url}" target="_blank">Read More</a>
+                            <button class="bookmark-btn" data-url="${article.url}">
+                                Bookmark for Offline
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        app.innerHTML = newsHTML;
+        this.attachNewsListeners();
+    }
+
+    attachAuthListeners() {
+        document.getElementById('authForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (User.validateUser(username, password)) {
+                this.createPreferencesForm();
+            } else {
+                alert('Invalid credentials');
+            }
+        });
+
+        document.getElementById('signupBtn').addEventListener('click', () => {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            users.push(new User(username, password, []));
+            localStorage.setItem('users', JSON.stringify(users));
+            alert('Signup successful! Please login.');
         });
     }
 
-    // Analyze Sentiment
-    function analyzeSentiment(text) {
-        const result = sentiment.analyze(text);
-        return result.score; // Sentiment score
+    attachPreferencesListeners() {
+        document.getElementById('preferencesForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const selectedCategories = Array.from(
+                document.querySelectorAll('input[name="category"]:checked')
+            ).map(input => input.value);
+            
+            if (selectedCategories.length > 0) {
+                this.displayNews(selectedCategories);
+            } else {
+                alert('Please select at least one category');
+            }
+        });
     }
 
-    // Analyze and Sort Articles
-    function analyzeAndSort(articles) {
-        articles.forEach((article) => {
-            article.sentimentScore = analyzeSentiment(article.description || "");
-        });
-        articles.sort((a, b) => b.sentimentScore - a.sentimentScore);
-        displayArticles(articles);
-    }
-
-    // Display Articles
-    function displayArticles(articles) {
-        const container = document.getElementById("newsContainer");
-        container.innerHTML = "";
-        articles.forEach((article) => {
-            const articleElem = document.createElement("div");
-            articleElem.className = "article";
-            articleElem.innerHTML = `
-                <h3>${article.title}</h3>
-                <p>${article.description || "No description available"}</p>
-                <a href="${article.url}" target="_blank">Read More</a>
-                <p>Sentiment Score: ${article.sentimentScore}</p>
-                <button class="saveOfflineBtn">Save Offline</button>
-            `;
-            container.appendChild(articleElem);
-        });
-
-        // Add event listeners to dynamically created buttons
-        container.querySelectorAll('.saveOfflineBtn').forEach((button, index) => {
-            button.addEventListener('click', () => {
-                saveForOffline(articles[index]);
+    attachNewsListeners() {
+        document.querySelectorAll('.bookmark-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const url = btn.dataset.url;
+                const articles = this.newsManager.cacheManager.getAllCache();
+                let article = null;
+                
+                Object.values(articles).some(categoryCache => {
+                    article = categoryCache.articles.find(a => a.url === url);
+                    return article;
+                });
+                
+                if (article) {
+                    this.newsManager.cacheManager.saveBookmark(article);
+                    alert('Article bookmarked for offline reading');
+                }
             });
         });
     }
+}
 
-    // Save for Offline
-    function saveForOffline(article) {
-        let offlineArticles = JSON.parse(localStorage.getItem("offlineArticles")) || [];
-        offlineArticles.push(article);
-        localStorage.setItem("offlineArticles", JSON.stringify(offlineArticles));
-    }
+// Get DOM Element
+const app = document.getElementById('app');
 
-    // View Offline Articles
-    document.getElementById("offlineArticlesBtn").addEventListener("click", () => {
-        showPage(offlinePage);
-        const offlineArticles = JSON.parse(localStorage.getItem("offlineArticles")) || [];
-        const container = document.getElementById("offlineContainer");
-        container.innerHTML = "";
-        offlineArticles.forEach((article) => {
-            const articleElem = document.createElement("div");
-            articleElem.className = "article";
-            articleElem.innerHTML = `
-                <h3>${article.title}</h3>
-                <p>${article.description || "No description available"}</p>
-                <a href="${article.url}" target="_blank">Read More</a>
-            `;
-            container.appendChild(articleElem);
-        });
-    });
-
-    // Back to News
-    document.getElementById("backToNews").addEventListener("click", () => {
-        showPage(newsPage);
-    });
-});
+// Initialize the app
+const uiManager = new UIManager();
+uiManager.createAuthForm();

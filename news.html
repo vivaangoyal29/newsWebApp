@@ -1,116 +1,139 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>News Aggregator</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f4f4f4;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Aggregator</title>
+    
+    <style>
+      .auth-container, 
+.preferences-container, 
+.news-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
 
-    #app {
-      max-width: 600px;
-      margin: 20px auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
+.auth-container h2,
+.preferences-container h2,
+.news-container h2 {
+    color: #333;
+    text-align: center;
+    margin-bottom: 20px;
+}
 
-    h2 {
-      text-align: center;
-      color: #333;
-    }
+.article-card {
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
 
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+.article-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
 
-    input, button {
-      padding: 10px;
-      font-size: 16px;
-    }
+.article-card h3 {
+    color: #2c3e50;
+    margin-top: 0;
+}
 
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+.sentiment-analysis {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+}
 
-    button:hover {
-      background: #0056b3;
-    }
+.sentiment-score {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+}
 
-    #newsContainer, #offlineContainer {
-      margin-top: 20px;
-    }
+.sentiment-details {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9em;
+}
 
-    .article {
-      border-bottom: 1px solid #ccc;
-      padding: 10px 0;
-    }
+.positive {
+    color: #28a745;
+}
 
-    .article h3 {
-      margin: 0;
-      font-size: 18px;
-    }
+.negative {
+    color: #dc3545;
+}
 
-    .article p {
-      margin: 5px 0;
-    }
-  </style>
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+input {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+button {
+    padding: 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+.preferences-container label {
+    display: block;
+    margin: 10px 0;
+    cursor: pointer;
+}
+
+.preferences-container input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+a {
+    color: #007bff;
+    text-decoration: none;
+    margin-right: 15px;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.bookmark-btn {
+    background: #6c757d;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.bookmark-btn:hover {
+    background: #5a6268;
+}
+    </style>
+    <script src="sentiment.js"></script>
 </head>
 <body>
-  <div id="app">
-    <!-- Authorization Page -->
-    <div id="authPage">
-      <h2>Sign Up / Sign In</h2>
-      <form id="authForm">
-        <input type="text" id="username" placeholder="Username" required />
-        <input type="password" id="password" placeholder="Password" required />
-        <button type="submit">Login</button>
-      </form>
-    </div>
-
-    <!-- Categories Page -->
-    <div id="categoriesPage" style="display: none;">
-      <h2>Select News Categories</h2>
-      <form id="categoryForm">
-        <label><input type="checkbox" name="category" value="business" /> Business</label>
-        <label><input type="checkbox" name="category" value="technology" /> Technology</label>
-        <label><input type="checkbox" name="category" value="sports" /> Sports</label>
-        <label><input type="checkbox" name="category" value="entertainment" /> Entertainment</label>
-        <label><input type="checkbox" name="category" value="health" /> Health</label>
-        <button type="submit">Show News</button>
-      </form>
-    </div>
-
-    <!-- News Page -->
-    <div id="newsPage" style="display: none;">
-      <h2>Top News Articles</h2>
-      <div id="newsContainer"></div>
-      <button id="offlineArticlesBtn">View Offline Articles</button>
-    </div>
-
-    <!-- Offline Articles Page -->
-    <div id="offlinePage" style="display: none;">
-      <h2>Offline Articles</h2>
-      <div id="offlineContainer"></div>
-      <button id="backToNews">Back to News</button>
-    </div>
-  </div>
-
-  <!-- Load Sentiment.js first -->
-  <script src="https://unpkg.com/sentiment@5.0.2/dist/sentiment.min.js"></script>
-  <!-- Load custom script -->
-  <script src="script.js"></script>
+    <div id="app"></div>
+    <script src="script.js"></script>
 </body>
 </html>

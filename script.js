@@ -1,14 +1,11 @@
 // Constants
 const NEWS_API_KEY = '83776e1904944ae09e8754f263f89284';
-
-// Initialize Sentiment analyzer
 const sentimentAnalyzer = new Sentiment();
 
-// Cache Manager Class - Define this first
 class CacheManager {
     constructor(maxSize = 100) {
         this.maxSize = maxSize;
-        this.cacheExpiration = 30 * 60 * 1000; // 30 minutes
+        this.cacheExpiration = 30 * 60 * 1000;
     }
 
     setCachedArticles(category, articles) {
@@ -83,7 +80,6 @@ class CacheManager {
     }
 }
 
-// News Manager Class - Define after CacheManager
 class NewsManager {
     constructor() {
         this.articles = [];
@@ -111,10 +107,17 @@ class NewsManager {
 
     analyzeSentiment(text) {
         const result = sentimentAnalyzer.analyze(text);
-        const normalizedScore = (result.score + 5) / 10;
+        let sentiment;
+        if (result.score > 0) {
+            sentiment = 'positive';
+        } else if (result.score < 0) {
+            sentiment = 'negative';
+        } else {
+            sentiment = 'neutral';
+        }
+        
         return {
-            score: normalizedScore,
-            comparative: result.comparative,
+            sentiment: sentiment,
             positive: result.positive,
             negative: result.negative
         };
@@ -127,14 +130,16 @@ class NewsManager {
             return { 
                 ...article, 
                 sentiment: sentimentAnalysis,
-                sentimentScore: sentimentAnalysis.score
+                sentimentType: sentimentAnalysis.sentiment
             };
         });
-        return processedArticles.sort((a, b) => b.sentimentScore - a.sentimentScore);
+        return processedArticles.sort((a, b) => {
+            const sentimentOrder = { positive: 3, neutral: 2, negative: 1 };
+            return sentimentOrder[b.sentimentType] - sentimentOrder[a.sentimentType];
+        });
     }
 }
 
-// User Class
 class User {
     constructor(username, password, preferences) {
         this.username = username;
@@ -148,7 +153,6 @@ class User {
     }
 }
 
-// UI Manager Class - Define last as it depends on NewsManager
 class UIManager {
     constructor() {
         this.newsManager = new NewsManager();
@@ -210,8 +214,8 @@ class UIManager {
                             <h3>${article.title}</h3>
                             <p>${article.description || ''}</p>
                             <div class="sentiment-analysis">
-                                <div class="sentiment-score">
-                                    Sentiment Score: ${article.sentimentScore.toFixed(2)}
+                                <div class="sentiment-type">
+                                    Sentiment: ${article.sentimentType}
                                 </div>
                                 <div class="sentiment-details">
                                     <span class="positive">Positive words: ${article.sentiment.positive.length}</span>
@@ -290,9 +294,6 @@ class UIManager {
     }
 }
 
-// Get DOM Element
 const app = document.getElementById('app');
-
-// Initialize the app
 const uiManager = new UIManager();
 uiManager.createAuthForm();

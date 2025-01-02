@@ -203,16 +203,31 @@ class UIManager {
             const categoryArticles = await this.newsManager.fetchNews(category);
             articles.push(...categoryArticles);
         }
-
+    
         this.allArticles = this.newsManager.processArticles(articles);
-        this.displayFilteredNews(this.allArticles);
+        this.displayFilteredNews(this.allArticles, preferences);  // Pass preferences to displayFilteredNews
     }
 
-    displayFilteredNews(articles) {
+    displayFilteredNews(articles, preferences) {
         const newsHTML = `
             <div class="news-container">
-                <h2>Your Personalized News</h2>
+                <div class="header-container">
+                    <h2>Your Personalized News</h2>
+                    <div class="user-controls">
+                        <button id="preferencesBtn" class="control-btn">Update Preferences</button>
+                        <button id="logoutBtn" class="control-btn">Logout</button>
+                    </div>
+                </div>
                 
+                <div class="current-preferences">
+                    <h3>Current Categories:</h3>
+                    <div class="preference-tags">
+                        ${preferences.map(pref => `
+                            <span class="preference-tag">${pref.charAt(0).toUpperCase() + pref.slice(1)}</span>
+                        `).join('')}
+                    </div>
+                </div>
+    
                 <div class="filters-container">
                     <div class="search-filter">
                         <input type="text" id="searchInput" placeholder="Search articles..." class="filter-input">
@@ -235,7 +250,7 @@ class UIManager {
                         </select>
                     </div>
                 </div>
-
+    
                 <div class="articles">
                     ${articles.map(article => `
                         <div class="article-card" data-sentiment="${article.sentimentType}">
@@ -258,10 +273,74 @@ class UIManager {
                     `).join('')}
                 </div>
             </div>
+    
+            <!-- Preferences Modal -->
+            <div id="preferencesModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <h2>Update Preferences</h2>
+                    <form id="updatePreferencesForm">
+                        ${['business', 'technology', 'sports', 'entertainment', 'health'].map(category => `
+                            <label>
+                                <input type="checkbox" name="category" value="${category}" 
+                                    ${preferences.includes(category) ? 'checked' : ''}>
+                                ${category.charAt(0).toUpperCase() + category.slice(1)}
+                            </label>
+                        `).join('')}
+                        <div class="modal-buttons">
+                            <button type="submit">Save Changes</button>
+                            <button type="button" id="cancelPreferences">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         `;
+        
         app.innerHTML = newsHTML;
         this.attachNewsListeners();
         this.attachFilterListeners();
+        this.attachControlListeners(preferences);
+    }
+    attachControlListeners(preferences) {
+        // Logout button listener
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to logout?')) {
+                this.createAuthForm();
+            }
+        });
+    
+        // Preferences button listener
+        const preferencesModal = document.getElementById('preferencesModal');
+        document.getElementById('preferencesBtn').addEventListener('click', () => {
+            preferencesModal.style.display = 'block';
+        });
+    
+        // Cancel button in preferences modal
+        document.getElementById('cancelPreferences').addEventListener('click', () => {
+            preferencesModal.style.display = 'none';
+        });
+    
+        // Update preferences form submission
+        document.getElementById('updatePreferencesForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPreferences = Array.from(
+                document.querySelectorAll('#updatePreferencesForm input[name="category"]:checked')
+            ).map(input => input.value);
+    
+            if (newPreferences.length === 0) {
+                alert('Please select at least one category');
+                return;
+            }
+    
+            preferencesModal.style.display = 'none';
+            await this.displayNews(newPreferences);
+        });
+    
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === preferencesModal) {
+                preferencesModal.style.display = 'none';
+            }
+        });
     }
 
     filterArticles() {

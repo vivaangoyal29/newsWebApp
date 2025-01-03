@@ -228,29 +228,6 @@ class UIManager {
                     </div>
                 </div>
     
-                <div class="filters-container">
-                    <div class="search-filter">
-                        <input type="text" id="searchInput" placeholder="Search articles..." class="filter-input">
-                    </div>
-                    
-                    <div class="sentiment-filter">
-                        <select id="sentimentFilter" class="filter-input">
-                            <option value="all">All Sentiments</option>
-                            <option value="positive">Positive</option>
-                            <option value="neutral">Neutral</option>
-                            <option value="negative">Negative</option>
-                        </select>
-                    </div>
-                    
-                    <div class="sort-filter">
-                        <select id="sortFilter" class="filter-input">
-                            <option value="sentiment">Sort by Sentiment</option>
-                            <option value="title">Sort by Title</option>
-                            <option value="date">Sort by Date</option>
-                        </select>
-                    </div>
-                </div>
-    
                 <div class="articles">
                     ${articles.map(article => `
                         <div class="article-card" data-sentiment="${article.sentimentType}">
@@ -287,21 +264,36 @@ class UIManager {
                             </label>
                         `).join('')}
                         <div class="modal-buttons">
-                            <button type="submit">Save Changes</button>
-                            <button type="button" id="cancelPreferences">Cancel</button>
+                        <button type="submit">Save Changes</button>
+                        <button type="button" id="cancelPreferences">Cancel</button>
                         </div>
-                    </form>
-                </div>
-            </div>
-        `;
-        
-        app.innerHTML = newsHTML;
-        this.attachNewsListeners();
-        this.attachFilterListeners();
-        this.attachControlListeners(preferences);
-    }
-    attachControlListeners(preferences) {
-        // Logout button listener
+                        </form>
+                        </div>
+                        </div>
+                        `;
+                        
+                        app.innerHTML = newsHTML;
+                        this.attachNewsListeners();
+                        this.attachFilterListeners();
+                        this.attachControlListeners(preferences);
+                    }
+                    sortArticles(articles, sortType) {
+                        switch (sortType) {
+                            case 'sentiment':
+                                return articles.sort((a, b) => {
+                                    const sentimentOrder = { positive: 3, neutral: 2, negative: 1 };
+                                    return sentimentOrder[b.sentimentType] - sentimentOrder[a.sentimentType];
+                                });
+                            case 'title':
+                                return articles.sort((a, b) => a.title.localeCompare(b.title));
+                            case 'date':
+                                return articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+                            default:
+                                return articles;
+                        }
+                    }
+        attachControlListeners(preferences) {
+                        // Logout button listener
         document.getElementById('logoutBtn').addEventListener('click', () => {
             if (confirm('Are you sure you want to logout?')) {
                 this.createAuthForm();
@@ -343,38 +335,6 @@ class UIManager {
         });
     }
 
-    filterArticles() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const sentimentFilter = document.getElementById('sentimentFilter').value;
-        const sortFilter = document.getElementById('sortFilter').value;
-
-        let filteredArticles = this.allArticles.filter(article => {
-            const matchesSearch = article.title.toLowerCase().includes(searchTerm) ||
-                                (article.description && article.description.toLowerCase().includes(searchTerm));
-            const matchesSentiment = sentimentFilter === 'all' || article.sentimentType === sentimentFilter;
-            
-            return matchesSearch && matchesSentiment;
-        });
-
-        filteredArticles = this.sortArticles(filteredArticles, sortFilter);
-        this.displayFilteredNews(filteredArticles);
-    }
-
-    sortArticles(articles, sortType) {
-        switch (sortType) {
-            case 'sentiment':
-                return articles.sort((a, b) => {
-                    const sentimentOrder = { positive: 3, neutral: 2, negative: 1 };
-                    return sentimentOrder[b.sentimentType] - sentimentOrder[a.sentimentType];
-                });
-            case 'title':
-                return articles.sort((a, b) => a.title.localeCompare(b.title));
-            case 'date':
-                return articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-            default:
-                return articles;
-        }
-    }
 
     attachAuthListeners() {
         document.getElementById('authForm').addEventListener('submit', (e) => {
